@@ -228,7 +228,7 @@ class LessonSelectionMenu
           else
             0
           end
-          ), 1)
+          ), 1, 1, 0)
         end
       })
       place("relx" => 0.1, "rely" => 0.85, "relwidth" => 0.8, "relheight" => 0.1)
@@ -297,7 +297,7 @@ class LearnKanaElement
 end
 
 class LearnKanjiElement
-  def initialize(root, main, lesson, index)
+  def initialize(root, main, lesson, index, *args)
     @root = root
     main.new_window
     start_id = COUNT_OF_LEARNING * lesson + 1
@@ -375,7 +375,7 @@ class LearnKanjiElement
 end
 
 class LearnWordElement
-  def initialize(root, main, lesson, index)
+  def initialize(root, main, lesson, index, *args)
     @root = root
     main.new_window
     start_id = COUNT_OF_LEARNING * lesson + 1
@@ -432,8 +432,35 @@ class LearnWordElement
   end
 end
 
+def get_random_element_with_cur(array, current_element)
+  result = []
+  while result.length < 3
+    random_element = array.sample
+    unless result.include?(random_element) and random_element != current_element
+      result.push(random_element)
+    end
+  end
+  result.push(current_element)
+  result.shuffle!
+end
+
+def check_answer(link_on_test, button, level, correct_answer)
+  link_on_test.set_as_checked(level)
+  if button.text == correct_answer
+    puts("ok")
+  else
+    puts('no')
+    link_on_test.add_errors
+  end
+end
+
 class TestWordElement
-  def initialize(root, main, lesson, index)
+  def initialize(root, main, lesson, index, phase, errors)
+    @errors = errors
+    @phase = phase
+    @index = index
+    @current_errors = 0
+    @checked = [false, false]
     @root = root
     main.new_window
     start_id = COUNT_OF_LEARNING * lesson + 1
@@ -443,12 +470,161 @@ class TestWordElement
         Where id >= #{start_id} AND id <= #{end_id}
     SQL
     current_word = words[index - 1]
-
-    widgets = []
+    status = "Фаза: #{@phase}/2 | Прогресс: #{index + 1}/#{COUNT_OF_LEARNING}) | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    @status_label = TkLabel.new(@root) do
+      textvariable status
+      font TkFont.new('times 16 bold')
+      place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
+    end
+    @question_label = TkLabel.new(@root) do
+      if @phase == 1
+        textvariable "Написание: " + current_word[1]
+      else
+        textvariable "Значение: " + current_word[3]
+      end
+      place("relx" => 0.05, "rely" => 0.2, "relwidth" => 0.9, "relheight" => 0.1)
+    end
+    link_on_this = self
+    readings_all_words = []
+    words.each { |word| readings_all_words.push(word[2]) }
+    reading = get_random_element_with_cur(readings_all_words, current_word[2])
+    first_level_buttons = []
+    x = 0.0
+    (0..3).each do |index|
+      button = TkButton.new(@root) do
+        text reading[index]
+        font TkFont.new('times 16 bold')
+        activebackground "blue"
+        command(proc { check_answer(link_on_this, self, 1, current_word[2]) })
+        place("relx" => x, "rely" => 0.4, "relwidth" => 0.25, "relheight" => 0.15)
+      end
+      x += 0.25
+      first_level_buttons.push(button)
+    end
+    second_level_buttons = []
+    x = 0.0
+    if @phase == 1
+      meanings_all_words = []
+      words.each { |word| meanings_all_words.push(word[3]) }
+      elements = get_random_element_with_cur(meanings_all_words, current_word[3])
+      correct_element = current_word[3]
+    else
+      writing_all_words = []
+      words.each { |word| writing_all_words.push(word[1]) }
+      elements = get_random_element_with_cur(writing_all_words, current_word[1])
+      correct_element = current_word[1]
+    end
+    (0..3).each do |index|
+      button = TkButton.new(@root) do
+        text elements[index]
+        font TkFont.new('times 16 bold')
+        activebackground "blue"
+        command(proc { check_answer(link_on_this, self, 2, correct_element) })
+        place("relx" => x, "rely" => 0.6, "relwidth" => 0.25, "relheight" => 0.15)
+      end
+      x += 0.25
+      second_level_buttons.push(button)
+    end
+    @confirm_button = TkButton.new(@root) do
+      text "Далее"
+      font TkFont.new('times 16 bold')
+      activebackground "blue"
+      command(proc {
+        if link_on_this.get_checked[0] and link_on_this.get_checked[1]
+          if index < 15
+            TestWordElement.new(root, main, lesson, index + 1, link_on_this.get_phase, link_on_this.get_errors + link_on_this.is_error)
+          elsif link_on_this.get_phase == 1 and index == 15
+            TestWordElement.new(root, main, lesson, 1, 2, link_on_this.get_errors + link_on_this.is_error)
+          elsif link_on_this.get_phase == 2 and index == 15
+            AfterTestMenuWord.new(root, main, errors, lesson)
+          end
+        end
+      })
+      place("relx" => 0.1, "rely" => 0.8, "relwidth" => 0.8, "relheight" => 0.15)
+    end
+    widgets = [@status_label, @question_label]
+    widgets += first_level_buttons
+    widgets += second_level_buttons
     main.add_widgets_to_list(widgets)
+  end
+  def get_phase
+    @phase
+  end
+  def get_errors
+    @errors
+  end
+  def get_checked
+    @checked
+  end
+  def add_errors
+    @current_errors += 1
+    update_errors
+  end
+
+  def set_as_checked(level)
+    @checked[level - 1] = true
+  end
+
+  def is_error
+    if @current_errors == 0
+      0
+    else
+      1
+    end
+  end
+
+  def update_errors
+    errors = @errors
+    if @current_errors
+      errors += 1
+    end
+    status = "Фаза: #{@phase}/2 | Прогресс: #{@index + 1}/#{COUNT_OF_LEARNING}) | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    @status_label['textvariable'] = status
+  end
+
+  public :set_as_checked, :add_errors, :get_checked, :get_errors, :get_phase, :is_error
+end
+
+class AfterTestMenuWord
+  def initialize(root, main, errors, lesson)
+    @root = root
+    status = "Фаза: 2/2 | "
+    status += "Прогресс #{COUNT_OF_LEARNING}/#{COUNT_OF_LEARNING}\n"
+    status += "Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}\n"
+    if errors < COUNT_OF_LEARNING * 2 * 0.1
+      result = true
+    else
+      result = false
+    end
+    if result
+      last_lesson = main.get_last_lesson("word")
+      if last_lesson == lesson
+        main.get_db.execute <<-SQL
+        UPDATE users
+        SET word_save = #{last_lesson + 1}
+          Where login == #{main.get_user[0]} AND password_hash == #{main.get_user[1]}
+        SQL
+      end
+    end
+    status += "Тест: #{
+    if result
+      'пройден.'
+    else
+      'не пройден.'
+    end}"
+    @status_label = TkLabel.new(@root) do
+      textvariable status
+      place("relx" => 0.05, "rely" => 0.4, "relwidth" => 0.9, "relheight" => 0.2)
+    end
+    @menu_button = TkButton.new(@root) do
+      text "Меню"
+      font TkFont.new('times 20 bold')
+      activebackground "blue"
+      command(proc { main.load_main_page })
+      place("relx" => 0.8, "rely" => 0.1, "relwidth" => 0.1, "relheight" => 0.1)
+    end
   end
 end
 
 db = SQLite3::Database.new("C:\\Users\\User\\RubymineProjects\\untitled\\Nihongo_programm\\Main.sqlite")
-
 app = Main.new(db)
