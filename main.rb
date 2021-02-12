@@ -436,7 +436,7 @@ def get_random_element_with_cur(array, current_element)
   result = []
   while result.length < 3
     random_element = array.sample
-    unless result.include?(random_element) and random_element != current_element
+    if random_element != current_element and not result.include?(random_element)
       result.push(random_element)
     end
   end
@@ -446,6 +446,7 @@ end
 
 def check_answer(link_on_test, button, level, correct_answer)
   link_on_test.set_as_checked(level)
+  button.background = "blue"
   if button.text == correct_answer
     puts("ok")
   else
@@ -470,21 +471,22 @@ class TestWordElement
         Where id >= #{start_id} AND id <= #{end_id}
     SQL
     current_word = words[index - 1]
-    status = "Фаза: #{@phase}/2 | Прогресс: #{index + 1}/#{COUNT_OF_LEARNING}) | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    link_on_this = self
+    status = "Фаза: #{@phase}/2 | Прогресс: #{index}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
     @status_label = TkLabel.new(@root) do
-      textvariable status
       font TkFont.new('times 16 bold')
+      text status
       place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
     end
     @question_label = TkLabel.new(@root) do
-      if @phase == 1
-        textvariable "Написание: " + current_word[1]
-      else
-        textvariable "Значение: " + current_word[3]
+        if link_on_this.get_phase == 1
+            text "Написание: " + current_word[1]
+        else
+          text "Значение: " + current_word[3]
       end
       place("relx" => 0.05, "rely" => 0.2, "relwidth" => 0.9, "relheight" => 0.1)
     end
-    link_on_this = self
+
     readings_all_words = []
     words.each { |word| readings_all_words.push(word[2]) }
     reading = get_random_element_with_cur(readings_all_words, current_word[2])
