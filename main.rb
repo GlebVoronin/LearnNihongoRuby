@@ -238,7 +238,7 @@ class LessonSelectionMenu
 end
 
 class LearnKanaElement
-  def initialize(root, main, lesson, index, type_of_kana)
+  def initialize(root, main, lesson, index, type_of_kana, *args)
     @root = root
     main.new_window
     start_id = COUNT_OF_LEARNING * lesson + 1
@@ -293,6 +293,18 @@ class LearnKanaElement
       widgets.push(@left_button)
     end
     main.add_widgets_to_list(widgets)
+  end
+end
+
+class LearnHiraganaElement < LearnKanaElement
+  def initialize(root, main, lesson, index, *args)
+    super root, main, lesson, index, HIRAGANA
+  end
+end
+
+class LearnKatakanaElement < LearnKanaElement
+  def initialize(root, main, lesson, index, *args)
+    super root, main, lesson, index, KATAKANA
   end
 end
 
@@ -479,10 +491,10 @@ class TestWordElement
       place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
     end
     @question_label = TkLabel.new(@root) do
-        if link_on_this.get_phase == 1
-            text "Написание: " + current_word[1]
-        else
-          text "Значение: " + current_word[3]
+      if link_on_this.get_phase == 1
+        text "Написание: " + current_word[1]
+      else
+        text "Значение: " + current_word[3]
       end
       place("relx" => 0.05, "rely" => 0.2, "relwidth" => 0.9, "relheight" => 0.1)
     end
@@ -549,15 +561,19 @@ class TestWordElement
     widgets += second_level_buttons
     main.add_widgets_to_list(widgets)
   end
+
   def get_phase
     @phase
   end
+
   def get_errors
     @errors
   end
+
   def get_checked
     @checked
   end
+
   def add_errors
     @current_errors += 1
     update_errors
