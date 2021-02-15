@@ -35,7 +35,7 @@ class Main
     end
     start_id = COUNT_OF_LEARNING * lesson_num + 1
     end_id = start_id + COUNT_OF_LEARNING - 1
-    elements = main.get_db.execute <<-SQL
+    elements = get_db.execute <<-SQL
       Select * From #{type_of_elements}
         Where id >= #{start_id} AND id <= #{end_id}
     SQL
@@ -630,7 +630,7 @@ class TestKanaElement
       correct_element = current_element[1]
     end
     (0..3).each do |index|
-      button = TkButton.new(@root) do
+      button = TkButton.new(root) do
         text elements[index]
         font TkFont.new('times 16 bold')
         activebackground "blue"
@@ -640,7 +640,7 @@ class TestKanaElement
       x += 0.25
       first_level_buttons.push(button)
     end
-    @confirm_button = TkButton.new(@root) do
+    @confirm_button = TkButton.new(root) do
       text "Далее"
       font TkFont.new('times 16 bold')
       activebackground "blue"
@@ -686,12 +686,12 @@ class TestKanjiElement < TestElementBase
     current_kanji = kanji[index - 1]
     link_on_this = self
     status = "Фаза: #{@phase}/2 | Прогресс: #{index}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
-    @status_label = TkLabel.new(@root) do
+    @status_label = TkLabel.new(root) do
       font TkFont.new('times 16 bold')
       text status
       place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
     end
-    @question_label = TkLabel.new(@root) do
+    @question_label = TkLabel.new(root) do
       if link_on_this.get_phase == 1
         text "Написание: " + current_kanji[1]
       else
@@ -699,49 +699,66 @@ class TestKanjiElement < TestElementBase
       end
       place("relx" => 0.05, "rely" => 0.2, "relwidth" => 0.9, "relheight" => 0.1)
     end
-    # need rewrite code for kanji - elements
-    readings_all_words = []
-    words.each { |word| readings_all_words.push(word[2]) }
-    reading = get_random_element_with_cur(readings_all_words, current_kanji[2])
+    #need testing this in bugs
+    onyomi_readings_for_all_kanji = []
+    kanji.each { |element| onyomi_readings_for_all_kanji.push(element[2]) }
+    onyomi_reading = get_random_element_with_cur(onyomi_readings_for_all_kanji, current_kanji[2])
     first_level_buttons = []
     x = 0.0
     (0..3).each do |index|
-      button = TkButton.new(@root) do
-        text reading[index]
+      button = TkButton.new(root) do
+        text onyomi_reading[index]
         font TkFont.new('times 16 bold')
         activebackground "blue"
         command(proc { check_answer(link_on_this, self, 1, current_kanji[2]) })
-        place("relx" => x, "rely" => 0.4, "relwidth" => 0.25, "relheight" => 0.15)
+        place("relx" => x, "rely" => 0.35, "relwidth" => 0.25, "relheight" => 0.1)
       end
       x += 0.25
       first_level_buttons.push(button)
     end
+
+    kunyomi_readings_for_all_kanji = []
+    kanji.each { |element| kunyomi_readings_for_all_kanji.push(element[3]) }
+    kunyomi_reading = get_random_element_with_cur(kunyomi_readings_for_all_kanji, current_kanji[3])
     second_level_buttons = []
     x = 0.0
-    if @phase == 1
-      meanings_all_words = []
-      words.each { |word| meanings_all_words.push(word[3]) }
-      elements = get_random_element_with_cur(meanings_all_words, current_kanji[3])
-      correct_element = current_kanji[3]
-    else
-      writing_all_words = []
-      words.each { |word| writing_all_words.push(word[1]) }
-      elements = get_random_element_with_cur(writing_all_words, current_kanji[1])
-      correct_element = current_kanji[1]
-    end
     (0..3).each do |index|
-      button = TkButton.new(@root) do
-        text elements[index]
+      button = TkButton.new(root) do
+        text kunyomi_reading[index]
         font TkFont.new('times 16 bold')
         activebackground "blue"
-        command(proc { check_answer(link_on_this, self, 2, correct_element) })
-        place("relx" => x, "rely" => 0.6, "relwidth" => 0.25, "relheight" => 0.15)
+        command(proc { check_answer(link_on_this, self, 2, current_kanji[3]) })
+        place("relx" => x, "rely" => 0.5, "relwidth" => 0.25, "relheight" => 0.1)
       end
       x += 0.25
       second_level_buttons.push(button)
     end
-    # end of rewriting
-    @confirm_button = TkButton.new(@root) do
+    if @phase == 1
+      meanings_all_kanji = []
+      kanji.each { |element| meanings_all_kanji.push(element[4]) }
+      elements = get_random_element_with_cur(meanings_all_kanji, current_kanji[4])
+      correct_element = current_kanji[4]
+    else
+      writing_all_kanji = []
+      kanji.each { |element| writing_all_kanji.push(element[1]) }
+      elements = get_random_element_with_cur(writing_all_kanji, current_kanji[1])
+      correct_element = current_kanji[1]
+    end
+    third_level_buttons = []
+    x = 0.0
+    (0..3).each do |index|
+      button = TkButton.new(root) do
+        text elements[index]
+        font TkFont.new('times 16 bold')
+        activebackground "blue"
+        command(proc { check_answer(link_on_this, self, 3, correct_element) })
+        place("relx" => x, "rely" => 0.65, "relwidth" => 0.25, "relheight" => 0.1)
+      end
+      x += 0.25
+      third_level_buttons.push(button)
+    end
+    # end of testing
+    @confirm_button = TkButton.new(root) do
       text "Далее"
       font TkFont.new('times 16 bold')
       activebackground "blue"
@@ -761,6 +778,7 @@ class TestKanjiElement < TestElementBase
     widgets = [@status_label, @question_label]
     widgets += first_level_buttons
     widgets += second_level_buttons
+    widgets += third_level_buttons
     main.add_widgets_to_list(widgets)
   end
 end
