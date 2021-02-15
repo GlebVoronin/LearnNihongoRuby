@@ -29,6 +29,19 @@ class Main
     last_lesson[0][0]
   end
 
+  def get_elements_for_lesson(type_of_elements, lesson_num)
+    unless %w[word hiragana katakana kanji].include?(type_of_elements)
+      raise "element type error! should be word/hiragana/katakana/kanji"
+    end
+    start_id = COUNT_OF_LEARNING * lesson_num + 1
+    end_id = start_id + COUNT_OF_LEARNING - 1
+    elements = main.get_db.execute <<-SQL
+      Select * From #{type_of_elements}
+        Where id >= #{start_id} AND id <= #{end_id}
+    SQL
+    elements
+  end
+
   def get_user
     @user
   end
@@ -81,7 +94,7 @@ class Main
     @list_widgets = [@learning_button, @testing_button, @setup_button, @support_button]
   end
 
-  public :new_window, :load_main_page, :add_widgets_to_list, :get_db, :get_user, :get_last_lesson
+  public :new_window, :load_main_page, :add_widgets_to_list, :get_db, :get_user, :get_last_lesson, :get_elements_for_lesson
 end
 
 
@@ -241,18 +254,7 @@ class LearnKanaElement
   def initialize(root, main, lesson, index, type_of_kana, *args)
     @root = root
     main.new_window
-    start_id = COUNT_OF_LEARNING * lesson + 1
-    end_id = start_id + COUNT_OF_LEARNING - 1
-    kana_table = (
-    if type_of_kana == HIRAGANA
-      "hiragana"
-    else
-      "katakana"
-    end)
-    kana = main.get_db.execute <<-SQL
-      Select * From #{kana_table}
-        Where id >= #{start_id} AND id <= #{end_id}
-    SQL
+    kana = main.get_elements_for_lesson(type_of_kana, lesson)
     current_word = kana[index - 1]
     @writing_text = TkText.new(@root) do
       font TkFont.new("font 24 bold")
@@ -312,12 +314,7 @@ class LearnKanjiElement
   def initialize(root, main, lesson, index, *args)
     @root = root
     main.new_window
-    start_id = COUNT_OF_LEARNING * lesson + 1
-    end_id = start_id + COUNT_OF_LEARNING - 1
-    kanji = main.get_db.execute <<-SQL
-      Select * From kanji
-        Where id >= #{start_id} AND id <= #{end_id}
-    SQL
+    kanji = main.get_elements_for_lesson("kanji", lesson)
     current_word = kanji[index - 1]
     @writing_text = TkText.new(@root) do
       font TkFont.new("font 24 bold")
@@ -390,12 +387,7 @@ class LearnWordElement
   def initialize(root, main, lesson, index, *args)
     @root = root
     main.new_window
-    start_id = COUNT_OF_LEARNING * lesson + 1
-    end_id = start_id + COUNT_OF_LEARNING - 1
-    words = main.get_db.execute <<-SQL
-      Select * From word
-        Where id >= #{start_id} AND id <= #{end_id}
-    SQL
+    words = main.get_elements_for_lesson("word", lesson)
     current_word = words[index - 1]
     @writing_text = TkText.new(@root) do
       font TkFont.new("font 24 bold")
@@ -467,7 +459,49 @@ def check_answer(link_on_test, button, level, correct_answer)
   end
 end
 
-class TestWordElement
+class TestElementBase
+  def get_phase
+    @phase
+  end
+
+  def get_errors
+    @errors
+  end
+
+  def get_checked
+    @checked
+  end
+
+  def add_errors
+    @current_errors += 1
+    update_errors
+  end
+
+  def set_as_checked(level)
+    @checked[level - 1] = true
+  end
+
+  def is_error
+    if @current_errors == 0
+      0
+    else
+      1
+    end
+  end
+
+  def update_errors
+    errors = @errors
+    if @current_errors
+      errors += 1
+    end
+    status = "Фаза: #{@phase}/2 | Прогресс: #{@index + 1}/#{COUNT_OF_LEARNING}) | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    @status_label.text = status
+  end
+
+  public :set_as_checked, :add_errors, :get_checked, :get_errors, :get_phase, :is_error
+end
+
+class TestWordElement < TestElementBase
   def initialize(root, main, lesson, index, phase, errors)
     @errors = errors
     @phase = phase
@@ -476,12 +510,7 @@ class TestWordElement
     @checked = [false, false]
     @root = root
     main.new_window
-    start_id = COUNT_OF_LEARNING * lesson + 1
-    end_id = start_id + COUNT_OF_LEARNING - 1
-    words = main.get_db.execute <<-SQL
-      Select * From word
-        Where id >= #{start_id} AND id <= #{end_id}
-    SQL
+    words = main.get_elements_for_lesson("word", lesson)
     current_word = words[index - 1]
     link_on_this = self
     status = "Фаза: #{@phase}/2 | Прогресс: #{index}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
@@ -561,51 +590,183 @@ class TestWordElement
     widgets += second_level_buttons
     main.add_widgets_to_list(widgets)
   end
-
-  def get_phase
-    @phase
-  end
-
-  def get_errors
-    @errors
-  end
-
-  def get_checked
-    @checked
-  end
-
-  def add_errors
-    @current_errors += 1
-    update_errors
-  end
-
-  def set_as_checked(level)
-    @checked[level - 1] = true
-  end
-
-  def is_error
-    if @current_errors == 0
-      0
-    else
-      1
-    end
-  end
-
-  def update_errors
-    errors = @errors
-    if @current_errors
-      errors += 1
-    end
-    status = "Фаза: #{@phase}/2 | Прогресс: #{@index + 1}/#{COUNT_OF_LEARNING}) | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
-    @status_label['textvariable'] = status
-  end
-
-  public :set_as_checked, :add_errors, :get_checked, :get_errors, :get_phase, :is_error
 end
 
-class AfterTestMenuWord
-  def initialize(root, main, errors, lesson)
-    @root = root
+class TestKanaElement
+  def initialize(root, main, lesson, index, phase, errors, type_of_kana)
+    @phase = phase
+    @errors = errors
+    @current_errors = 0
+    @checked = [false, false]
+    main.new_window
+    kana = main.get_elements_for_lesson(type_of_kana, lesson)
+    current_element = kana[index - 1]
+    link_on_this = self
+    status = "Фаза: #{phase}/2 | Прогресс: #{index}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    @status_label = TkLabel.new(root) do
+      font TkFont.new('times 16 bold')
+      text status
+      place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
+    end
+    @question_label = TkLabel.new(root) do
+      if link_on_this.get_phase == 1
+        text "Написание: " + current_element[1]
+      else
+        text "Чтение: " + current_element[2]
+      end
+      place("relx" => 0.05, "rely" => 0.2, "relwidth" => 0.9, "relheight" => 0.1)
+    end
+    first_level_buttons = []
+    x = 0.0
+    if phase == 1
+      readings_all_kana = []
+      kana.each { |element| readings_all_kana.push(element[2]) }
+      elements = get_random_element_with_cur(readings_all_kana, current_element[2])
+      correct_element = current_element[2]
+    else
+      writing_all_kana = []
+      kana.each { |element| writing_all_kana.push(element[1]) }
+      elements = get_random_element_with_cur(writing_all_kana, current_element[1])
+      correct_element = current_element[1]
+    end
+    (0..3).each do |index|
+      button = TkButton.new(@root) do
+        text elements[index]
+        font TkFont.new('times 16 bold')
+        activebackground "blue"
+        command(proc { check_answer(link_on_this, self, 1, correct_element) })
+        place("relx" => x, "rely" => 0.6, "relwidth" => 0.25, "relheight" => 0.15)
+      end
+      x += 0.25
+      first_level_buttons.push(button)
+    end
+    @confirm_button = TkButton.new(@root) do
+      text "Далее"
+      font TkFont.new('times 16 bold')
+      activebackground "blue"
+      command(proc {
+        if link_on_this.get_checked[0] and link_on_this.get_checked[1]
+          if index < 15
+            TestKanaElement.new(root, main, lesson, index + 1, link_on_this.get_phase, link_on_this.get_errors + link_on_this.is_error, type_of_kana)
+          elsif link_on_this.get_phase == 1 and index == 15
+            TestKanaElement.new(root, main, lesson, 1, 2, link_on_this.get_errors + link_on_this.is_error, type_of_kana)
+          elsif link_on_this.get_phase == 2 and index == 15
+            AfterTestMenuKana.new(root, main, errors, lesson, type_of_kana)
+          end
+        end
+      })
+      place("relx" => 0.1, "rely" => 0.8, "relwidth" => 0.8, "relheight" => 0.15)
+    end
+    widgets = [@status_label, @question_label]
+    widgets += first_level_buttons
+    main.add_widgets_to_list(widgets)
+  end
+end
+
+class TestHiraganaElement < TestKanaElement
+  def initialize(root, main, lesson, index, phase, errors)
+    super root, main, lesson, index, phase, errors, HIRAGANA
+  end
+end
+
+class TestKatakanaElement < TestKanaElement
+  def initialize(root, main, lesson, index, phase, errors)
+    super root, main, lesson, index, phase, errors, KATAKANA
+  end
+end
+
+class TestKanjiElement < TestElementBase
+  def initialize(root, main, lesson, index, phase, errors)
+    @phase = phase
+    @errors = errors
+    @current_errors = 0
+    @checked = [false, false, false]
+    main.new_window
+    kanji = main.get_elements_for_lesson("kanji", lesson)
+    current_kanji = kanji[index - 1]
+    link_on_this = self
+    status = "Фаза: #{@phase}/2 | Прогресс: #{index}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    @status_label = TkLabel.new(@root) do
+      font TkFont.new('times 16 bold')
+      text status
+      place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
+    end
+    @question_label = TkLabel.new(@root) do
+      if link_on_this.get_phase == 1
+        text "Написание: " + current_kanji[1]
+      else
+        text "Значение: " + current_kanji[3]
+      end
+      place("relx" => 0.05, "rely" => 0.2, "relwidth" => 0.9, "relheight" => 0.1)
+    end
+    # need rewrite code for kanji - elements
+    readings_all_words = []
+    words.each { |word| readings_all_words.push(word[2]) }
+    reading = get_random_element_with_cur(readings_all_words, current_kanji[2])
+    first_level_buttons = []
+    x = 0.0
+    (0..3).each do |index|
+      button = TkButton.new(@root) do
+        text reading[index]
+        font TkFont.new('times 16 bold')
+        activebackground "blue"
+        command(proc { check_answer(link_on_this, self, 1, current_kanji[2]) })
+        place("relx" => x, "rely" => 0.4, "relwidth" => 0.25, "relheight" => 0.15)
+      end
+      x += 0.25
+      first_level_buttons.push(button)
+    end
+    second_level_buttons = []
+    x = 0.0
+    if @phase == 1
+      meanings_all_words = []
+      words.each { |word| meanings_all_words.push(word[3]) }
+      elements = get_random_element_with_cur(meanings_all_words, current_kanji[3])
+      correct_element = current_kanji[3]
+    else
+      writing_all_words = []
+      words.each { |word| writing_all_words.push(word[1]) }
+      elements = get_random_element_with_cur(writing_all_words, current_kanji[1])
+      correct_element = current_kanji[1]
+    end
+    (0..3).each do |index|
+      button = TkButton.new(@root) do
+        text elements[index]
+        font TkFont.new('times 16 bold')
+        activebackground "blue"
+        command(proc { check_answer(link_on_this, self, 2, correct_element) })
+        place("relx" => x, "rely" => 0.6, "relwidth" => 0.25, "relheight" => 0.15)
+      end
+      x += 0.25
+      second_level_buttons.push(button)
+    end
+    # end of rewriting
+    @confirm_button = TkButton.new(@root) do
+      text "Далее"
+      font TkFont.new('times 16 bold')
+      activebackground "blue"
+      command(proc {
+        if link_on_this.get_checked[0] and link_on_this.get_checked[1]
+          if index < 15
+            TestKanjiElement.new(root, main, lesson, index + 1, link_on_this.get_phase, link_on_this.get_errors + link_on_this.is_error)
+          elsif link_on_this.get_phase == 1 and index == 15
+            TestKanjiElement.new(root, main, lesson, 1, 2, link_on_this.get_errors + link_on_this.is_error)
+          elsif link_on_this.get_phase == 2 and index == 15
+            AfterTestMenuKanji.new(root, main, errors, lesson)
+          end
+        end
+      })
+      place("relx" => 0.1, "rely" => 0.8, "relwidth" => 0.8, "relheight" => 0.15)
+    end
+    widgets = [@status_label, @question_label]
+    widgets += first_level_buttons
+    widgets += second_level_buttons
+    main.add_widgets_to_list(widgets)
+  end
+end
+
+class AfterTestMenu
+  def initialize(root, main, errors, current_lesson, type_of_element)
     status = "Фаза: 2/2 | "
     status += "Прогресс #{COUNT_OF_LEARNING}/#{COUNT_OF_LEARNING}\n"
     status += "Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}\n"
@@ -615,11 +776,11 @@ class AfterTestMenuWord
       result = false
     end
     if result
-      last_lesson = main.get_last_lesson("word")
-      if last_lesson == lesson
+      last_lesson = main.get_last_lesson(type_of_element.downcase)
+      if last_lesson == current_lesson
         main.get_db.execute <<-SQL
         UPDATE users
-        SET word_save = #{last_lesson + 1}
+        SET #{type_of_element.downcase}_save = #{last_lesson + 1}
           Where login == #{main.get_user[0]} AND password_hash == #{main.get_user[1]}
         SQL
       end
@@ -630,17 +791,35 @@ class AfterTestMenuWord
     else
       'не пройден.'
     end}"
-    @status_label = TkLabel.new(@root) do
-      textvariable status
+    @status_label = TkLabel.new(root) do
+      text status
       place("relx" => 0.05, "rely" => 0.4, "relwidth" => 0.9, "relheight" => 0.2)
     end
-    @menu_button = TkButton.new(@root) do
+    @menu_button = TkButton.new(root) do
       text "Меню"
       font TkFont.new('times 20 bold')
       activebackground "blue"
       command(proc { main.load_main_page })
       place("relx" => 0.8, "rely" => 0.1, "relwidth" => 0.1, "relheight" => 0.1)
     end
+  end
+end
+
+class AfterTestMenuWord < AfterTestMenu
+  def initialize(root, main, errors, lesson)
+    super root, main, errors, lesson, "word"
+  end
+end
+
+class AfterTestMenuKana < AfterTestMenu
+  def initialize(root, main, errors, lesson, type_of_kana)
+    super root, main, errors, lesson, type_of_kana
+  end
+end
+
+class AfterTestMenuKanji < AfterTestMenu
+  def initialize(root, main, errors, lesson)
+    super root, main, errors, lesson, "kanji"
   end
 end
 
