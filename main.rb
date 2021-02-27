@@ -494,7 +494,7 @@ class TestElementBase
     if @current_errors
       errors += 1
     end
-    status = "Фаза: #{@phase}/2 | Прогресс: #{@index + 1}/#{COUNT_OF_LEARNING}) | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    status = "Фаза: #{@phase}/2 | Прогресс: #{@index + 1}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
     @status_label.text = status
   end
 
@@ -520,6 +520,7 @@ class TestWordElement < TestElementBase
       place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
     end
     @question_label = TkLabel.new(@root) do
+      font TkFont.new('times 16 bold')
       if link_on_this.get_phase == 1
         text "Написание: " + current_word[1]
       else
@@ -598,6 +599,7 @@ class TestKanaElement
     @errors = errors
     @current_errors = 0
     @checked = [false, false]
+    @index = index
     main.new_window
     kana = main.get_elements_for_lesson(type_of_kana, lesson)
     current_element = kana[index - 1]
@@ -609,6 +611,7 @@ class TestKanaElement
       place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
     end
     @question_label = TkLabel.new(root) do
+      font TkFont.new('times 16 bold')
       if link_on_this.get_phase == 1
         text "Написание: " + current_element[1]
       else
@@ -681,6 +684,7 @@ class TestKanjiElement < TestElementBase
     @errors = errors
     @current_errors = 0
     @checked = [false, false, false]
+    @index = index
     main.new_window
     kanji = main.get_elements_for_lesson("kanji", lesson)
     current_kanji = kanji[index - 1]
@@ -692,6 +696,7 @@ class TestKanjiElement < TestElementBase
       place("relx" => 0.05, "rely" => 0.05, "relwidth" => 0.9, "relheight" => 0.1)
     end
     @question_label = TkLabel.new(root) do
+      font TkFont.new('times 26 bold')
       if link_on_this.get_phase == 1
         text "Написание: " + current_kanji[1]
       else
