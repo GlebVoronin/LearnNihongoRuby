@@ -449,12 +449,11 @@ def get_random_element_with_cur(array, current_element)
 end
 
 def check_answer(link_on_test, button, level, correct_answer)
+  unless link_on_test.is_checked(level)
+    button.background = "blue"
+  end
   link_on_test.set_as_checked(level)
-  button.background = "blue"
-  if button.text == correct_answer
-    puts("ok")
-  else
-    puts('no')
+  if button.text != correct_answer
     link_on_test.add_errors
   end
 end
@@ -481,6 +480,10 @@ class TestElementBase
     @checked[level - 1] = true
   end
 
+  def is_checked(level)
+    @checked[level - 1]
+  end
+
   def is_error
     if @current_errors == 0
       0
@@ -498,7 +501,7 @@ class TestElementBase
     @status_label.text = status
   end
 
-  public :set_as_checked, :add_errors, :get_checked, :get_errors, :get_phase, :is_error
+  public :set_as_checked, :add_errors, :get_checked, :get_errors, :get_phase, :is_error, :is_checked
 end
 
 class TestWordElement < TestElementBase
@@ -685,6 +688,7 @@ class TestKanjiElement < TestElementBase
     @current_errors = 0
     @checked = [false, false, false]
     @index = index
+
     main.new_window
     kanji = main.get_elements_for_lesson("kanji", lesson)
     current_kanji = kanji[index - 1]
@@ -700,7 +704,7 @@ class TestKanjiElement < TestElementBase
       if link_on_this.get_phase == 1
         text "Написание: " + current_kanji[1]
       else
-        text "Значение: " + current_kanji[3]
+        text "Значение: " + current_kanji[4]
       end
       place("relx" => 0.05, "rely" => 0.2, "relwidth" => 0.9, "relheight" => 0.1)
     end
