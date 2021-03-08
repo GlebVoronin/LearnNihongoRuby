@@ -467,10 +467,6 @@ class TestElementBase
     @errors
   end
 
-  def get_checked
-    @checked
-  end
-
   def add_errors
     @current_errors += 1
     update_errors
@@ -501,7 +497,7 @@ class TestElementBase
     @status_label.text = status
   end
 
-  public :set_as_checked, :add_errors, :get_checked, :get_errors, :get_phase, :is_error, :is_checked
+  public :set_as_checked, :add_errors, :get_errors, :get_phase, :is_error, :is_checked
 end
 
 class TestWordElement < TestElementBase
@@ -577,7 +573,7 @@ class TestWordElement < TestElementBase
       font TkFont.new('times 16 bold')
       activebackground "blue"
       command(proc {
-        if link_on_this.get_checked[0] and link_on_this.get_checked[1]
+        if link_on_this.is_checked(1) and link_on_this.is_checked(2)
           if index < 15
             TestWordElement.new(root, main, lesson, index + 1, link_on_this.get_phase, link_on_this.get_errors + link_on_this.is_error)
           elsif link_on_this.get_phase == 1 and index == 15
@@ -651,7 +647,7 @@ class TestKanaElement
       font TkFont.new('times 16 bold')
       activebackground "blue"
       command(proc {
-        if link_on_this.get_checked[0] and link_on_this.get_checked[1]
+        if link_on_this.is_checked(1) and link_on_this.is_checked(2)
           if index < 15
             TestKanaElement.new(root, main, lesson, index + 1, link_on_this.get_phase, link_on_this.get_errors + link_on_this.is_error, type_of_kana)
           elsif link_on_this.get_phase == 1 and index == 15
@@ -772,7 +768,7 @@ class TestKanjiElement < TestElementBase
       font TkFont.new('times 16 bold')
       activebackground "blue"
       command(proc {
-        if link_on_this.get_checked[0] and link_on_this.get_checked[1]
+        if link_on_this.is_checked(1) and link_on_this.is_checked(2) and link_on_this.is_checked(3)
           if index < 15
             TestKanjiElement.new(root, main, lesson, index + 1, link_on_this.get_phase, link_on_this.get_errors + link_on_this.is_error)
           elsif link_on_this.get_phase == 1 and index == 15
