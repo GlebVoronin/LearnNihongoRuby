@@ -493,7 +493,13 @@ class TestElementBase
     if @current_errors
       errors += 1
     end
-    status = "Фаза: #{@phase}/2 | Прогресс: #{@index + 1}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    if @index + 1 <= 15
+      status = "Фаза: #{@phase}/2 | Прогресс: #{@index + 1}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    elsif @index + 1 > 15 and @phase == 1
+      status = "Фаза: 2/2 | Прогресс: 1/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    else  # phase == 2 and next index == 16
+      status = "Фаза: 2/2 | Прогресс: #{COUNT_OF_LEARNING}/#{COUNT_OF_LEARNING} | Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}"
+    end
     @status_label.text = status
   end
 
@@ -780,7 +786,7 @@ class TestKanjiElement < TestElementBase
       })
       place("relx" => 0.1, "rely" => 0.8, "relwidth" => 0.8, "relheight" => 0.15)
     end
-    widgets = [@status_label, @question_label]
+    widgets = [@status_label, @question_label, @confirm_button]
     widgets += first_level_buttons
     widgets += second_level_buttons
     widgets += third_level_buttons
@@ -790,6 +796,7 @@ end
 
 class AfterTestMenu
   def initialize(root, main, errors, current_lesson, type_of_element)
+    main.new_window
     status = "Фаза: 2/2 | "
     status += "Прогресс #{COUNT_OF_LEARNING}/#{COUNT_OF_LEARNING}\n"
     status += "Ошибок: #{errors}/#{COUNT_OF_LEARNING * 2}\n"
@@ -815,6 +822,7 @@ class AfterTestMenu
       'не пройден.'
     end}"
     @status_label = TkLabel.new(root) do
+      font TkFont.new("times 16 bold")
       text status
       place("relx" => 0.05, "rely" => 0.4, "relwidth" => 0.9, "relheight" => 0.2)
     end
@@ -825,6 +833,7 @@ class AfterTestMenu
       command(proc { main.load_main_page })
       place("relx" => 0.8, "rely" => 0.1, "relwidth" => 0.1, "relheight" => 0.1)
     end
+    main.add_widgets_to_list([@status_label, @menu_button])
   end
 end
 
